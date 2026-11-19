@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090910">
+<title>Anwlito Downloader</title>
+<style>
+:root{color-scheme:dark;--bg:#090910;--panel:#151520;--line:#30283d;--purple:#8652df;--text:#f7f4ff;--muted:#aaa2b8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Arial,sans-serif;min-height:100vh}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px max(18px,calc((100% - 920px)/2))}
+.logo{font-size:20px;font-weight:800;color:#bd9aff;letter-spacing:.2px}
+select,input,button{font:inherit}
+select{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px}
+nav{max-width:920px;margin:8px auto 0;padding:0 18px;display:flex;gap:10px}
+.tab{flex:1;border:1px solid var(--line);background:#171520;color:var(--muted);padding:13px;border-radius:12px;font-weight:700;cursor:pointer}
+.tab.active{background:var(--purple);border-color:var(--purple);color:white}
+main{max-width:650px;margin:42px auto;padding:0 18px 40px}
+.panel{display:none}.panel.active{display:block}
+h1{text-align:center;font-size:clamp(26px,5vw,34px);margin:0 0 8px}
+.sub{text-align:center;color:var(--muted);margin:0 0 28px}
+.field{width:100%;padding:15px;background:var(--panel);color:white;border:1px solid var(--line);border-radius:12px;outline:none}
+.field:focus{border-color:#a77af5}
+.formats{display:flex;gap:10px;margin:14px 0 20px}
+.format{flex:1;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:white;font-weight:700;cursor:pointer}
+.format.active{background:#38245a;border-color:#a77af5;color:#d9c5ff}
+.primary{width:100%;border:0;border-radius:12px;padding:15px;background:linear-gradient(90deg,#7040c2,#a16df0);color:white;font-weight:800;cursor:pointer}
+.primary:disabled{opacity:.55;cursor:wait}
+.upload{display:block;padding:26px 15px;text-align:center;border:1px dashed #7556a1;border-radius:12px;background:#12111a;color:#d3baff;cursor:pointer;margin:18px 0}
+input[type=file]{display:none}
+.filename{color:var(--muted);font-size:13px;overflow-wrap:anywhere;text-align:center;min-height:20px}
+.message{margin:15px 0 0;text-align:center;color:#cdb5ff;min-height:22px;overflow-wrap:anywhere}
+.note{font-size:12px;line-height:1.5;color:var(--muted);margin-top:16px}
+.progress{height:7px;background:#272333;border-radius:20px;overflow:hidden;margin-top:12px;display:none}
+.progress>div{height:100%;width:0;background:#a77af5;transition:width .2s}
+footer{text-align:center;color:#716a7c;font-size:12px;padding:20px}
+@media(max-width:420px){header{padding:15px}.logo{font-size:17px}main{margin-top:30px}.formats{gap:7px}.format{padding:11px 5px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Anwlito Downloader</div>
+  <select id="language" aria-label="Language">
+    <option value="es">Español</option><option value="en">English</option>
+    <option value="pt">Português</option><option value="ko">한국어</option>
+  </select>
+</header>
+
+<nav>
+  <button class="tab active" id="downloadTab" type="button">Descargador</button>
+  <button class="tab" id="convertTab" type="button">Convertidor</button>
+</nav>
+
+<main>
+<section class="panel active" id="downloadPanel">
+  <h1 id="downloadHeading">Descargador</h1>
+  <p class="sub" id="downloadSub">Descarga un archivo multimedia desde un enlace directo.</p>
+  <input class="field" id="urlInput" type="url" placeholder="Coloca tu enlace aquí" autocomplete="url">
+  <div class="formats" id="downloadFormats">
+    <button class="format active" data-value="mp3" type="button">MP3</button>
+    <button class="format" data-value="mp4" type="button">MP4</button>
+    <button class="format" data-value="ogg" type="button">OGG</button>
+  </div>
+  <button class="primary" id="downloadButton" type="button">Descargar archivo</button>
+  <p class="message" id="downloadMessage" role="status"></p>
+  <p class="note" id="downloadNote">Funciona con enlaces directos a archivos y servidores que permitan acceso desde el navegador (CORS). No extrae vídeos de YouTube. El formato elegido es una etiqueta de nombre, no convierte el archivo.</p>
+</section>
+
+<section class="panel" id="convertPanel">
+  <h1 id="convertHeading">Convertidor</h1>
+  <p class="sub" id="convertSub">Convierte audio o extrae audio de un vídeo en tu navegador.</p>
+  <label class="upload" for="fileInput" id="uploadLabel">📁 Seleccionar archivo de audio o vídeo</label>
+  <input id="fileInput" type="file" accept="audio/*,video/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mp4,.webm,.mov">
+  <p class="filename" id="fileName">Ningún archivo seleccionado</p>
+  <p class="note" id="formatNote">Formato de salida</p>
+  <div class="formats" id="convertFormats">
+    <button class="format active" data-value="mp3" type="button">MP3</button>
+    <button class="format" data-value="ogg" type="button">OGG</button>
+    <button class="format" data-value="wav" type="button">WAV</button>
+  </div>
+  <button class="primary" id="convertButton" type="button">Convertir archivo</button>
+  <div class="progress" id="progress"><div id="progressBar"></div></div>
+  <p class="message" id="convertMessage" role="status"></p>
+  <p class="note" id="convertNote">La primera conversión descarga FFmpeg.wasm desde un CDN y puede tardar. Para móviles, usa archivos pequeños (recomendado: menos de 50 MB). El archivo se procesa localmente en tu navegador.</p>
+</section>
+</main>
+<footer>Anwlito Downloader © 2026</footer>
+
+<script type="module">
+import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { toBlobURL } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
+
+const $ = id => document.getElementById(id);
+let downloadFormat = 'mp3';
+let convertFormat = 'mp3';
+let selectedFile = null;
+let ffmpeg = null;
+let ffmpegLoading = null;
+
+const translations = {
+es:{
+ download:'Descargador',convert:'Convertidor',
+ dsub:'Descarga un archivo multimedia desde un enlace directo.',
+ csub:'Convierte audio o extrae audio de un vídeo en tu navegador.',
+ placeholder:'Coloca tu enlace aquí',downloadBtn:'Descargar archivo',
+ upload:'📁 Seleccionar archivo de audio o vídeo',noFile:'Ningún archivo seleccionado',
+ output:'Formato de salida',convertBtn:'Convertir archivo',
+ dnote:'Funciona con enlaces directos a archivos y servidores que permitan acceso desde el navegador (CORS). No extrae vídeos de YouTube. El formato elegido es una etiqueta de nombre, no convierte el archivo.',
+ cnote:'La primera conversión descarga FFmpeg.wasm desde un CDN y puede tardar. Para móviles, usa archivos pequeños (recomendado: menos de 50 MB). El archivo se procesa localmente en tu navegador.',
+ enter:'Pega un enlace válido.',yt:'No se descargan vídeos de YouTube. Usa las opciones oficiales de YouTube o un archivo que tengas permiso de descargar.',
+ downloading:'Descargando archivo...',downloadError:'No se pudo descargar. El servidor puede bloquear el acceso CORS o el enlace no ser directo.',
+ choose:'Selecciona un archivo primero.',loading:'Cargando motor de conversión...',converting:'Convirtiendo archivo...',done:'¡Conversión terminada! Descarga iniciada.',
+ convertError:'No se pudo convertir. Prueba con otro archivo o uno más pequeño.',
+ tooBig:'El archivo supera 50 MB. En móviles puede quedarse sin memoria.',
+ loadError:'No se pudo cargar FFmpeg. Comprueba tu conexión e inténtalo de nuevo.'
+},
+en:{
+ download:'Downloader',convert:'Converter',dsub:'Download a media file from a direct link.',
+ csub:'Convert audio or extract audio from a video in your browser.',
+ placeholder:'Paste your link here',downloadBtn:'Download file',
+ upload:'📁 Select an audio or video file',noFile:'No file selected',
+ output:'Output format',convertBtn:'Convert file',
+ dnote:'Works with direct file links and servers that allow browser access (CORS). It does not extract YouTube videos. The selected format is only a filename label; it does not convert the file.',
+ cnote:'The first conversion loads FFmpeg.wasm from a CDN and may take a while. On mobile, use small files (under 50 MB recommended). Processing happens locally in your browser.',
+ enter:'Enter a valid link.',yt:'YouTube videos are not downloaded. Use YouTube official options or a file you have permission to download.',
+ downloading:'Downloading file...',downloadError:'Download failed. The server may block CORS or the link may not be direct.',
+ choose:'Select a file first.',loading:'Loading conversion engine...',converting:'Converting file...',done:'Conversion complete! Download started.',
+ convertError:'Could not convert. Try another or smaller file.',
+ tooBig:'File exceeds 50 MB. Your mobile device may run out of memory.',
+ loadError:'Could not load FFmpeg. Check your connection and try again.'
+},
+pt:{
+ download:'Baixador',convert:'Conversor',dsub:'Baixe um arquivo de mídia por um link direto.',
+ csub:'Converta áudio ou extraia áudio de um vídeo no navegador.',
+ placeholder:'Cole seu link aqui',downloadBtn:'Baixar arquivo',
+ upload:'📁 Selecionar arquivo de áudio ou vídeo',noFile:'Nenhum arquivo selecionado',
+ output:'Formato de saída',convertBtn:'Converter arquivo',
+ dnote:'Funciona com links diretos e servidores que permitem acesso pelo navegador (CORS). Não extrai vídeos do YouTube. O formato escolhido é apenas o nome do arquivo, não uma conversão.',
+ cnote:'A primeira conversão carrega o FFmpeg.wasm de um CDN e pode demorar. Em celulares, use arquivos pequenos (menos de 50 MB recomendado). O processamento ocorre no navegador.',
+ enter:'Insira um link válido.',yt:'Vídeos do YouTube não são baixados. Use as opções oficiais do YouTube ou um arquivo que você tenha permissão para baixar.',
+ downloading:'Baixando arquivo...',downloadError:'Falha no download. O servidor pode bloquear CORS ou o link não ser direto.',
+ choose:'Selecione um arquivo primeiro.',loading:'Carregando mecanismo de conversão...',converting:'Convertendo arquivo...',done:'Conversão concluída! Download iniciado.',
+ convertError:'Não foi possível converter. Tente outro arquivo ou um menor.',
+ tooBig:'O arquivo excede 50 MB. Seu celular pode ficar sem memória.',
+ loadError:'Não foi possível carregar o FFmpeg. Verifique sua conexão.'
+},
+ko:{
+ download:'다운로더',convert:'변환기',dsub:'직접 링크에서 미디어 파일을 다운로드합니다.',
+ csub:'브라우저에서 오디오를 변환하거나 동영상에서 오디오를 추출합니다.',
+ placeholder:'링크를 붙여넣으세요',downloadBtn:'파일 다운로드',
+ upload:'📁 오디오 또는 동영상 파일 선택',noFile:'선택된 파일 없음',
+ output:'출력 형식',convertBtn:'파일 변환',
+ dnote:'브라우저 접근(CORS)을 허용하는 직접 파일 링크에서 작동합니다. YouTube 동영상을 추출하지 않습니다. 선택한 형식은 파일 이름일 뿐 변환 기능이 아닙니다.',
+ cnote:'첫 변환 시 CDN에서 FFmpeg.wasm을 불러오므로 시간이 걸릴 수 있습니다. 모바일에서는 50MB 미만의 작은 파일을 권장합니다. 파일은 브라우저에서 처리됩니다.',
+ enter:'올바른 링크를 입력하세요.',yt:'YouTube 동영상은 다운로드하지 않습니다. 공식 옵션이나 다운로드 권한이 있는 파일을 사용하세요.',
+ downloading:'파일 다운로드 중...',downloadError:'다운로드 실패. CORS 또는 직접 링크인지 확인하세요.',
+ choose:'먼저 파일을 선택하세요.',loading:'변환 엔진 로딩 중...',converting:'파일 변환 중...',done:'변환 완료! 다운로드가 시작되었습니다.',
+ convertError:'변환할 수 없습니다. 다른 파일이나 더 작은 파일을 시도하세요.',
+ tooBig:'파일이 50MB를 초과합니다. 모바일 메모리가 부족할 수 있습니다.',
+ loadError:'FFmpeg를 불러오지 못했습니다. 인터넷 연결을 확인하세요.'
+}
+};
+
+function tr(){return translations[$('language').value] || translations.es;}
+function setMessage(id,text){$(id).textContent=text;}
+function selectFormat(container, value, which){
+  const buttons = $(container).querySelectorAll('button');
+  buttons.forEach(b=>b.classList.toggle('active',b.dataset.value===value));
+  if(which==='download') downloadFormat=value; else convertFormat=value;
+}
+$('downloadFormats').addEventListener('click',e=>{
+ const b=e.target.closest('button[data-value]'); if(b)selectFormat('downloadFormats',b.dataset.value,'download');
+});
+$('convertFormats').addEventListener('click',e=>{
+ const b=e.target.closest('button[data-value]'); if(b)selectFormat('convertFormats',b.dataset.value,'convert');
+});
+function showPanel(name){
+ const isDownload=name==='download';
+ $('downloadPanel').classList.toggle('active',isDownload);
+ $('convertPanel').classList.toggle('active',!isDownload);
+ $('downloadTab').classList.toggle('active',isDownload);
+ $('convertTab').classList.toggle('active',!isDownload);
+}
+$('downloadTab').addEventListener('click',()=>showPanel('download'));
+$('convertTab').addEventListener('click',()=>showPanel('convert'));
+
+function changeLanguage(){
+ const t=tr();
+ $('downloadTab').textContent=t.download;
+ $('convertTab').textContent=t.convert;
+ $('downloadHeading').textContent=t.download;
+ $('convertHeading').textContent=t.convert;
+ $('downloadSub').textContent=t.dsub;
+ $('convertSub').textContent=t.csub;
+ $('urlInput').placeholder=t.placeholder;
+ $('downloadButton').textContent=t.downloadBtn;
+ $('uploadLabel').textContent=t.upload;
+ $('fileName').textContent=selectedFile?selectedFile.name:t.noFile;
+ $('formatNote').textContent=t.output;
+ $('convertButton').textContent=t.convertBtn;
+ $('downloadNote').textContent=t.dnote;
+ $('convertNote').textContent=t.cnote;
+}
+$('language').addEventListener('change',changeLanguage);
+$('fileInput').addEventListener('change',()=>{
+ selectedFile=$('fileInput').files[0]||null;
+ $('fileName').textContent=selectedFile?selectedFile.name:tr().noFile;
+ setMessage('convertMessage','');
+});
+
+function saveBlob(blob,name){
+ const objectURL=URL.createObjectURL(blob);
+ const a=document.createElement('a');
+ a.href=objectURL;a.download=name;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(objectURL),3000);
+}
+function safeName(name){return name.replace(/[\\/:*?"<>|]+/g,'_').slice(0,100)||'anwlito';}
+
+$('downloadButton').addEventListener('click',async()=>{
+ const raw=$('urlInput').value.trim(), t=tr(), button=$('downloadButton');
+ setMessage('downloadMessage','');
+ let url;
+ try{url=new URL(raw);if(!['http:','https:'].includes(url.protocol))throw 0;}
+ catch{setMessage('downloadMessage',t.enter);return;}
+ if(/(^|\.)youtube\.com$|(^|\.)youtu\.be$/i.test(url.hostname)){
+  setMessage('downloadMessage',t.yt);return;
+ }
+ button.disabled=true;setMessage('downloadMessage',t.downloading);
+ try{
+  const response=await fetch(url.href);
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const blob=await response.blob();
+  if(!blob.size)throw new Error('Empty file');
+  const pathname=decodeURIComponent(url.pathname.split('/').pop()||'download');
+  const base=pathname.includes('.')?pathname.replace(/\.[^.]+$/,''):pathname;
+  saveBlob(blob,safeName(base)+'.'+downloadFormat);
+  setMessage('downloadMessage','');
+ }catch(err){setMessage('downloadMessage',t.downloadError);}
+ finally{button.disabled=false;}
+});
+
+async function loadFFmpeg(){
+ if(ffmpeg) return ffmpeg;
+ if(ffmpegLoading) return ffmpegLoading;
+ ffmpegLoading=(async()=>{
+  const instance=new FFmpeg();
+  instance.on('progress',({progress})=>{
+   $('progress').style.display='block';
+   $('progressBar').style.width=Math.max(0,Math.min(100,progress*100))+'%';
+  });
+  const base='https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+  await instance.load({
+   coreURL:await toBlobURL(base+'/ffmpeg-core.js','text/javascript'),
+   wasmURL:await toBlobURL(base+'/ffmpeg-core.wasm','application/wasm')
+  });
+  ffmpeg=instance;
+  return instance;
+ })();
+ try{return await ffmpegLoading;}catch(e){ffmpegLoading=null;throw e;}
+}
+
+$('convertButton').addEventListener('click',async()=>{
+ const t=tr(),button=$('convertButton');
+ if(!selectedFile){setMessage('convertMessage',t.choose);return;}
+ if(selectedFile.size>50*1024*1024){setMessage('convertMessage',t.tooBig);return;}
+ button.disabled=true;$('progress').style.display='block';$('progressBar').style.width='0%';
+ setMessage('convertMessage',t.loading);
+ let inputName='input_'+Date.now(),outputName='output.'+convertFormat;
+ try{
+  const engine=await loadFFmpeg();
+  const ext=(selectedFile.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'')||'bin';
+  inputName='input.'+ext;
+  await engine.writeFile(inputName,new Uint8Array(await selectedFile.arrayBuffer()));
+  setMessage('convertMessage',t.converting);
+  let args;
+  if(convertFormat==='mp3') args=['-i',inputName,'-vn','-codec:a','libmp3lame','-q:a','2',outputName];
+  else if(convertFormat==='ogg') args=['-i',inputName,'-vn','-codec:a','libvorbis','-q:a','4',outputName];
+  else args=['-i',inputName,'-vn','-codec:a','pcm_s16le','-ar','44100',outputName];
+  await engine.exec(args);
+  const data=await engine.readFile(outputName);
+  const mime=convertFormat==='mp3'?'audio/mpeg':convertFormat==='ogg'?'audio/ogg':'audio/wav';
+  saveBlob(new Blob([data.buffer],{type:mime}),safeName(selectedFile.name.replace(/\.[^.]+$/,''))+'.'+convertFormat);
+  setMessage('convertMessage',t.done);
+ }catch(err){
+  console.error(err);
+  setMessage('convertMessage',ffmpeg? t.convertError:t.loadError);
+ }finally{
+  try{if(ffmpeg){await ffmpeg.deleteFile(inputName);await ffmpeg.deleteFile(outputName);}}catch(e){}
+  button.disabled=false;
+  setTimeout(()=>{$('progress').style.display='none';$('progressBar').style.width='0%';},1200);
+ }
+});
+changeLanguage();
+</script>
+</body>
+</html>
